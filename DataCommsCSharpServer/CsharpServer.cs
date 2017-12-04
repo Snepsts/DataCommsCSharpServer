@@ -33,6 +33,7 @@ namespace DataCommsCSharpServer
 		{
 			byte[] data = new byte[1024];
 			string message = "";
+			string gifPath = "";
 			int recvLength;
 			string htmlPath = ""; //path for grabbing html files
 
@@ -49,29 +50,49 @@ namespace DataCommsCSharpServer
 				Socket client = server.Accept();
 				Console.WriteLine("Connected to " + client.ToString());
 
+				uint counter = 0;
+				bool timedOut = false;
+
 				while (true) {
+					counter++;
+
+					if (counter == 2000000) { //wait for a timeOut
+						timedOut = true;
+						recvLength = 0; //fix build error
+						break;
+					}
+
 					recvLength = client.Receive(data);
 
 					if (recvLength == 0) //didn't get anything
-						break;
+						continue;
+
 					message = Encoding.ASCII.GetString(data, 0, recvLength);
 					Console.WriteLine(message);
 
-					if (message.Contains("\r\n\r\n"))
+					if (message.Contains("\r\n\r\n")) {
 						Console.WriteLine("Header Fully Recieved");
-					break;
+						break;
+					}
+				}
+
+				if (timedOut) { //disconnect a timed out client
+					Console.WriteLine("Client Timed Out, Disconnecting...");
+					client.Shutdown(SocketShutdown.Both);
+					client.Close();
+					continue;
 				}
 
 				string newMessage = "";
 
 				if (recvLength == 0) {
-					SendHead(client, 400, fourHunned.Length);
+					SendHead(client, 400, fourHunned.Length, true);
 					data = Encoding.ASCII.GetBytes(fourHunned + "\r\n\r\n");
 					Console.WriteLine("Sending: " + fourHunned);
 					client.Send(data, SocketFlags.None);
 				} else {
 					if (!message.Contains("GET") || !message.Contains("HTTP/")) { //if they aren't GETting anything then screw them, bad request
-						SendHead(client, 400, fourHunned.Length);
+						SendHead(client, 400, fourHunned.Length, true);
 						data = Encoding.ASCII.GetBytes(fourHunned + "\r\n\r\n");
 						Console.WriteLine("Sending: " + fourHunned);
 						client.Send(data, SocketFlags.None);
@@ -92,12 +113,12 @@ namespace DataCommsCSharpServer
 					Console.WriteLine("newMessage.Length = " + newMessage);
 
 					if (newMessage == "/") { // /: index
-						SendHead(client, 200, index.Length);
+						SendHead(client, 200, index.Length, true);
 						data = Encoding.ASCII.GetBytes(index + "\r\n\r\n");
 						Console.WriteLine("Sending: " + index);
 						client.Send(data, SocketFlags.None);
 					} else if (newMessage == "a") {
-						SendHead(client, 200, anotherHardwiredPage.Length);
+						SendHead(client, 200, anotherHardwiredPage.Length, true);
 						data = Encoding.ASCII.GetBytes(anotherHardwiredPage + "\r\n\r\n");
 						Console.WriteLine("Sending: " + anotherHardwiredPage);
 						client.Send(data, SocketFlags.None);
@@ -106,28 +127,43 @@ namespace DataCommsCSharpServer
 						Console.WriteLine("htmlPath = " + htmlPath);
 						if (File.Exists(htmlPath)) {
 							string file = File.ReadAllText(htmlPath);
-							SendHead(client, 200, file.Length);
+							SendHead(client, 200, file.Length, true);
 							data = Encoding.ASCII.GetBytes(file + "\r\n\r\n");
 							Console.WriteLine("Sending: " + file);
 							client.Send(data, SocketFlags.None);
 						} else {
-							SendHead(client, 404, fourHunnednForteeFor.Length);
+							SendHead(client, 404, fourHunnednForteeFor.Length, true);
+							data = Encoding.ASCII.GetBytes(fourHunnednForteeFor + "\r\n\r\n");
+							Console.WriteLine("Sending: " + fourHunnednForteeFor);
+							client.Send(data, SocketFlags.None);
+						}
+					} else if (newMessage.Contains(".gif") || newMessage.Contains(".GIF")) {
+						gifPath = path + "\\" + newMessage;
+						Console.WriteLine("gifPath = " + gifPath);
+						if (File.Exists(gifPath)) {
+							byte[] gifData = new byte[1001024];
+							string file = File.ReadAllText(gifPath);
+							SendHead(client, 200, file.Length, false);
+							gifData = Encoding.UTF8.GetBytes(file + "\r\n\r\n");
+							Console.WriteLine("Sending: " + file);
+							client.Send(data, SocketFlags.None);
+						} else {
+							SendHead(client, 404, fourHunnednForteeFor.Length, true);
 							data = Encoding.ASCII.GetBytes(fourHunnednForteeFor + "\r\n\r\n");
 							Console.WriteLine("Sending: " + fourHunnednForteeFor);
 							client.Send(data, SocketFlags.None);
 						}
 					} else { //404: Not Found
-						SendHead(client, 404, fourHunnednForteeFor.Length);
+						SendHead(client, 404, fourHunnednForteeFor.Length, true);
 						data = Encoding.ASCII.GetBytes(fourHunnednForteeFor + "\r\n\r\n");
 						Console.WriteLine("Sending: " + fourHunnednForteeFor);
 						client.Send(data, SocketFlags.None);
 					}
 				}
 
+				client.Shutdown(SocketShutdown.Both);
+				client.Close(0);
 				Console.WriteLine("Disconnected from " + client.ToString());
-				client.Close();
-
-				/*
 				Console.WriteLine("Would you like to shut down the server? (Yes or No)");
 				bool quitting = Console.ReadLine().ToLower().Contains("y");
 
@@ -135,17 +171,16 @@ namespace DataCommsCSharpServer
 					Console.WriteLine("Shutting down...");
 					break;
 				}
-				*/
 			}
 
 			server.Close(); //technically never reach here
 		}
 
-		static void SendHead(Socket client, int code, int length)
+		static void SendHead(Socket client, int code, int length, bool isHTML)
 		{
 			string codeStr;
 
-			switch(code) {
+			switch (code) {
 				case 200:
 					codeStr = "OK";
 					break;
@@ -175,10 +210,17 @@ namespace DataCommsCSharpServer
 			Console.WriteLine(msg);
 			client.Send(data, SocketFlags.None);
 
-			msg = "Content-Type: text/html\r\n";
-			data = Encoding.ASCII.GetBytes(msg);
-			Console.WriteLine(msg);
-			client.Send(data, SocketFlags.None);
+			if (isHTML) {
+				msg = "Content-Type: text/html\r\n";
+				data = Encoding.ASCII.GetBytes(msg);
+				Console.WriteLine(msg);
+				client.Send(data, SocketFlags.None);
+			} else {
+				msg = "Content-Type: image/gif\r\n";
+				data = Encoding.ASCII.GetBytes(msg);
+				Console.WriteLine(msg);
+				client.Send(data, SocketFlags.None);
+			}
 
 			msg = "\r\n";
 			data = Encoding.ASCII.GetBytes(msg);
