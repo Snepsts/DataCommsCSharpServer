@@ -43,8 +43,7 @@ namespace DataCommsCSharpServer
 				Socket client = server.Accept();
 				Console.WriteLine("Connected to " + client.ToString());
 
-				while (true)
-				{
+				while (true) {
 					recvLength = client.Receive(data);
 
 					if (recvLength == 0) //didn't get anything
@@ -57,21 +56,46 @@ namespace DataCommsCSharpServer
 					break;
 				}
 
+				string newMessage = "";
+
 				if (recvLength == 0) {
 					SendHead(client, 400, fourHunned.Length);
 					data = Encoding.ASCII.GetBytes(fourHunned + "\r\n\r\n");
 					Console.WriteLine("Sending: " + fourHunned);
 					client.Send(data, SocketFlags.None);
-				} else if (message == "/") { // /: index
-					SendHead(client, 200, index.Length);
-					data = Encoding.ASCII.GetBytes(index + "\r\n\r\n");
-					Console.WriteLine("Sending: " + index);
-					client.Send(data, SocketFlags.None);
-				} else { //404: Not Found
-					SendHead(client, 404, fourHunnednForteeFor.Length);
-					data = Encoding.ASCII.GetBytes(fourHunnednForteeFor + "\r\n\r\n");
-					Console.WriteLine("Sending: " + fourHunnednForteeFor);
-					client.Send(data, SocketFlags.None);
+				} else {
+					if (!message.Contains("GET") || !message.Contains("HTTP/")) { //if they aren't GETting anything then screw them, bad request
+						SendHead(client, 400, fourHunned.Length);
+						data = Encoding.ASCII.GetBytes(fourHunned + "\r\n\r\n");
+						Console.WriteLine("Sending: " + fourHunned);
+						client.Send(data, SocketFlags.None);
+					} else {
+
+						newMessage = ""; //reinit cuz why not?
+
+						for (int i = 4; i < message.Length; i++) { //start at 4 to get the first item after "GET "
+							if (message[i] == ' ') { //break outta these chaiiins when we reach a space (to ignore "HTML/1.0\r\n\r\n")
+								break;
+							}
+
+							newMessage += message[i];
+						}
+					}
+
+					Console.WriteLine("newMessage = " + newMessage);
+					Console.WriteLine("newMessage.Length = " + newMessage);
+
+					if (newMessage == "/") { // /: index
+						SendHead(client, 200, index.Length);
+						data = Encoding.ASCII.GetBytes(index + "\r\n\r\n");
+						Console.WriteLine("Sending: " + index);
+						client.Send(data, SocketFlags.None);
+					} else { //404: Not Found
+						SendHead(client, 404, fourHunnednForteeFor.Length);
+						data = Encoding.ASCII.GetBytes(fourHunnednForteeFor + "\r\n\r\n");
+						Console.WriteLine("Sending: " + fourHunnednForteeFor);
+						client.Send(data, SocketFlags.None);
+					}
 				}
 
 				Console.WriteLine("Disconnected from " + client.ToString());
