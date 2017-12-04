@@ -8,6 +8,7 @@
  */
 
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -16,6 +17,8 @@ namespace DataCommsCSharpServer
 {
 	class CSharpServer
 	{
+		//for getting html files from the same dir as the exe
+		static string path = Directory.GetCurrentDirectory();
 		//SERVER_NAME
 		static string serverName = "CS480 Demo Web Server";
 		//ERROR 400
@@ -31,6 +34,7 @@ namespace DataCommsCSharpServer
 			byte[] data = new byte[1024];
 			string message = "";
 			int recvLength;
+			string htmlPath = ""; //path for grabbing html files
 
 			if (args.Length > 1) //test for correct # of args
 				throw new ArgumentException("Parameters: [<Port>]");
@@ -97,6 +101,21 @@ namespace DataCommsCSharpServer
 						data = Encoding.ASCII.GetBytes(anotherHardwiredPage + "\r\n\r\n");
 						Console.WriteLine("Sending: " + anotherHardwiredPage);
 						client.Send(data, SocketFlags.None);
+					} else if (newMessage.Contains("html") || newMessage.Contains("HTML")) {
+						htmlPath = path + "\\" + newMessage;
+						Console.WriteLine("htmlPath = " + htmlPath);
+						if (File.Exists(htmlPath)) {
+							string file = File.ReadAllText(htmlPath);
+							SendHead(client, 200, file.Length);
+							data = Encoding.ASCII.GetBytes(file + "\r\n\r\n");
+							Console.WriteLine("Sending: " + file);
+							client.Send(data, SocketFlags.None);
+						} else {
+							SendHead(client, 404, fourHunnednForteeFor.Length);
+							data = Encoding.ASCII.GetBytes(fourHunnednForteeFor + "\r\n\r\n");
+							Console.WriteLine("Sending: " + fourHunnednForteeFor);
+							client.Send(data, SocketFlags.None);
+						}
 					} else { //404: Not Found
 						SendHead(client, 404, fourHunnednForteeFor.Length);
 						data = Encoding.ASCII.GetBytes(fourHunnednForteeFor + "\r\n\r\n");
