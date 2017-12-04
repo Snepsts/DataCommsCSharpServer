@@ -55,15 +55,6 @@ namespace DataCommsCSharpServer
 					if (message.Contains("\r\n\r\n"))
 						Console.WriteLine("Header Fully Recieved");
 					break;
-
-					/*
-					if (message.Contains("\r\n\r\n"))
-					Console.WriteLine("Header Fully Recieved");
-					break;
-					*/
-					//string message = "Test\n";
-					//data = Encoding.ASCII.GetBytes(message);
-					//client.Send(data, SocketFlags.None);
 				}
 
 				if (recvLength == 0) {
