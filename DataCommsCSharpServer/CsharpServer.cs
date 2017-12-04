@@ -24,6 +24,8 @@ namespace DataCommsCSharpServer
 		static string fourHunnednForteeFor = "<head></head><body><html><h1>Error 404</h1><p>Document not found.</html></body>\n";
 		// /
 		static string index = "<head></head><body><html><h1>Welcome to the CS480\\Demo Server</h1><p>Why not visit: <ul><li><a href =\"http://www2.semo.edu/csdept/ \">Computer Science Home Page</a><li><a href =\"http://cstl-csm.semo.edu/liu/cs480_fall2012/index.htm\"\\>CS480 Home Page<a></ul></html></body>\n";
+		//another hardwired page, accessed with a during testing
+		static string anotherHardwiredPage = "<head></head><head></head><body><html><h1>Welcome to my additionally hardcoded page!!!</h1><p>Why not visit: <ul><li><a href =\"/\">CS480 Demo Server</a></ul></html></body>\n";
 		static void Main(string[] args)
 		{
 			byte[] data = new byte[1024];
@@ -90,6 +92,11 @@ namespace DataCommsCSharpServer
 						data = Encoding.ASCII.GetBytes(index + "\r\n\r\n");
 						Console.WriteLine("Sending: " + index);
 						client.Send(data, SocketFlags.None);
+					} else if (newMessage == "a") {
+						SendHead(client, 200, anotherHardwiredPage.Length);
+						data = Encoding.ASCII.GetBytes(anotherHardwiredPage + "\r\n\r\n");
+						Console.WriteLine("Sending: " + anotherHardwiredPage);
+						client.Send(data, SocketFlags.None);
 					} else { //404: Not Found
 						SendHead(client, 404, fourHunnednForteeFor.Length);
 						data = Encoding.ASCII.GetBytes(fourHunnednForteeFor + "\r\n\r\n");
@@ -101,6 +108,7 @@ namespace DataCommsCSharpServer
 				Console.WriteLine("Disconnected from " + client.ToString());
 				client.Close();
 
+				/*
 				Console.WriteLine("Would you like to shut down the server? (Yes or No)");
 				bool quitting = Console.ReadLine().ToLower().Contains("y");
 
@@ -108,9 +116,10 @@ namespace DataCommsCSharpServer
 					Console.WriteLine("Shutting down...");
 					break;
 				}
+				*/
 			}
 
-			server.Close();
+			server.Close(); //technically never reach here
 		}
 
 		static void SendHead(Socket client, int code, int length)
